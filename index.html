@@ -229,6 +229,20 @@ header.wobbly{padding:8px 12px;display:flex;align-items:center;gap:10px;flex-wra
 .bubble.show{opacity:1;transform:translateX(-50%) scale(1)}
 .zzz{position:absolute;left:106px;top:2px;width:40px;height:40px;display:none;z-index:4;pointer-events:none}
 .scene.sleeping .zzz{display:block}
+/* 睡觉小被子 + 渐暗 */
+.blanket{position:absolute;left:50%;bottom:6px;width:184px;height:84px;transform:translateX(-50%);display:none;z-index:3;
+  pointer-events:none;animation:blanketIn .6s ease-out}
+.scene.sleeping .blanket{display:block}
+@keyframes blanketIn{0%{transform:translateX(-50%) translateY(46px);opacity:0}100%{transform:translateX(-50%) translateY(0);opacity:1}}
+.scene.sleeping .sky::after{content:'';position:absolute;inset:0;background:rgba(18,26,58,.34)}
+/* 成就墙 */
+.ach-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.ach{padding:9px 6px;background:#fff;border:3px solid var(--ink);border-radius:12px 18px 10px 20px/18px 10px 20px 12px;text-align:center}
+.ach .ic{font-size:25px;line-height:1.2}
+.ach b{font-size:13.5px;display:block}
+.ach p{font-size:11px;color:var(--ink-soft)}
+.ach.off{opacity:.5}
+.ach.off .ic{filter:grayscale(1)}
 .zzz span{position:absolute;font-size:20px;color:#7a8bc9;animation:zzfloat 2.4s infinite}
 .zzz span:nth-child(2){animation-delay:.8s;font-size:15px}
 .zzz span:nth-child(3){animation-delay:1.6s;font-size:12px}
@@ -429,6 +443,7 @@ header.wobbly{padding:8px 12px;display:flex;align-items:center;gap:10px;flex-wra
         </div>
       </div>
       <div class="h-btns">
+        <button class="btn small" id="achBtn" data-tip="成就墙 🏆">🏆</button>
         <button class="btn small" id="shareBtn" data-tip="进度备份与恢复 📤">📤</button>
         <button class="btn small" id="saveBtn" data-tip="保存进度 💾">💾</button>
         <button class="btn small" id="soundBtn" data-tip="音效开关 🔊">🔊</button>
@@ -509,6 +524,11 @@ header.wobbly{padding:8px 12px;display:flex;align-items:center;gap:10px;flex-wra
         <div class="pet-shadow"></div>
         <div class="pet-scale" id="petScale"></div>
         <div class="zzz"><span>z</span><span>Z</span><span>z</span></div>
+        <div class="blanket" id="blanket"><svg viewBox="0 0 190 90">
+          <path d="M6 8q89-14 178 0l-4 58q-85 16-170 0Z" fill="#f2a65a" stroke="#5b4636" stroke-width="5" stroke-linejoin="round"/>
+          <path d="M8 30h174M8 52h174M63 12v68M126 12v68" stroke="#5b4636" stroke-width="3" opacity=".4" fill="none"/>
+          <g fill="#fff" opacity=".9"><circle cx="63" cy="30" r="7"/><circle cx="126" cy="52" r="7"/><circle cx="95" cy="70" r="6"/><circle cx="95" cy="12" r="5"/></g>
+        </svg></div>
       </div>
     </div>
 
@@ -546,6 +566,16 @@ header.wobbly{padding:8px 12px;display:flex;align-items:center;gap:10px;flex-wra
         <div class="mini-result hidden" id="miniResult"></div>
       </div>
       <button class="btn close-x" id="miniClose">不玩了</button>
+    </div>
+  </div>
+
+  <!-- 成就墙 -->
+  <div class="modal-mask hidden" id="achMask">
+    <div class="modal wobbly">
+      <h2>🏅 成就墙</h2>
+      <p class="shop-coins" id="achCount"></p>
+      <div class="ach-grid" id="achGrid"></div>
+      <button class="btn close-x" id="achClose">关闭</button>
     </div>
   </div>
 
@@ -619,7 +649,10 @@ const ICONS={
   night:'<svg viewBox="0 0 26 26"><path d="M20 13A8.5 8.5 0 1 1 11.5 4.5 6.6 6.6 0 0 0 20 13Z" fill="#8f9fd4" stroke="'+INK+'" stroke-width="2" stroke-linejoin="round"/><circle cx="20" cy="6" r="1.4" fill="#ffd166"/><circle cx="23" cy="10" r="1.1" fill="#ffd166"/></svg>',
   beach:'<svg viewBox="0 0 26 26"><circle cx="18" cy="8" r="4.6" fill="#ffd166" stroke="'+INK+'" stroke-width="2"/><path d="M3 17q3-3 6 0t6 0 6 0 5 0" fill="none" stroke="#54aed0" stroke-width="2.4" stroke-linecap="round"/><path d="M3 22q3-3 6 0t6 0 6 0 5 0" fill="none" stroke="#54aed0" stroke-width="2.4" stroke-linecap="round"/></svg>',
   sakura:'<svg viewBox="0 0 26 26"><g fill="#f9b3ca" stroke="'+INK+'" stroke-width="2"><circle cx="13" cy="6.5" r="4.2"/><circle cx="6" cy="12" r="4.2"/><circle cx="20" cy="12" r="4.2"/><circle cx="8.5" cy="19" r="4.2"/><circle cx="17.5" cy="19" r="4.2"/></g><circle cx="13" cy="13.5" r="3.2" fill="#ffd166" stroke="'+INK+'" stroke-width="2"/></svg>',
-  meadow:'<svg viewBox="0 0 26 26"><path d="M13 24V15M8 24q0-8-5-11M18 24q0-8 5-11M10.5 24q-1-6-4-8M15.5 24q1-6 4-8" fill="none" stroke="#4c7a3a" stroke-width="2.4" stroke-linecap="round"/><circle cx="13" cy="9" r="3.6" fill="#f2789f" stroke="'+INK+'" stroke-width="2"/></svg>'
+  meadow:'<svg viewBox="0 0 26 26"><path d="M13 24V15M8 24q0-8-5-11M18 24q0-8 5-11M10.5 24q-1-6-4-8M15.5 24q1-6 4-8" fill="none" stroke="#4c7a3a" stroke-width="2.4" stroke-linecap="round"/><circle cx="13" cy="9" r="3.6" fill="#f2789f" stroke="'+INK+'" stroke-width="2"/></svg>',
+  hat:'<svg viewBox="0 0 26 26"><rect x="8" y="5" width="10" height="13" rx="1.5" fill="#4d4d5e" stroke="'+INK+'" stroke-width="2"/><ellipse cx="13" cy="19" rx="11" ry="3.4" fill="#4d4d5e" stroke="'+INK+'" stroke-width="2"/><rect x="7.6" y="13" width="10.8" height="3.4" fill="#e05d5d" stroke="'+INK+'" stroke-width="1.6"/></svg>',
+  bow:'<svg viewBox="0 0 26 26"><path d="M11 13 3 6.5v13Z" fill="#f2789f" stroke="'+INK+'" stroke-width="2" stroke-linejoin="round"/><path d="M15 13l8-6.5v13Z" fill="#f2789f" stroke="'+INK+'" stroke-width="2" stroke-linejoin="round"/><rect x="9.6" y="9" width="6.8" height="8" rx="2.4" fill="#f2789f" stroke="'+INK+'" stroke-width="2"/></svg>',
+  crown:'<svg viewBox="0 0 26 26"><path d="M4 19 6 8l5 5 2-7 2 7 5-5 2 11Z" fill="#ffd166" stroke="'+INK+'" stroke-width="2" stroke-linejoin="round"/></svg>'
 };
 const ITEMS=[
   {id:'snack',name:'骨头饼干',price:5,desc:'饱食 +18',eff:{hunger:18},icon:ICONS.bone},
@@ -630,7 +663,10 @@ const ITEMS=[
   {id:'meadow',name:'青青草地',price:0,desc:'场景装扮 · 默认拥有，随时切回',cat:'decor',icon:ICONS.meadow},
   {id:'night',name:'星空夜幕',price:30,desc:'场景装扮 · 永久拥有',cat:'decor',icon:ICONS.night},
   {id:'beach',name:'阳光海滩',price:30,desc:'场景装扮 · 永久拥有',cat:'decor',icon:ICONS.beach},
-  {id:'sakura',name:'浪漫樱花',price:30,desc:'场景装扮 · 永久拥有',cat:'decor',icon:ICONS.sakura}
+  {id:'sakura',name:'浪漫樱花',price:30,desc:'场景装扮 · 永久拥有',cat:'decor',icon:ICONS.sakura},
+  {id:'hat',name:'绅士礼帽',price:15,desc:'宠物配件 · 可随时摘下',cat:'acc',icon:ICONS.hat},
+  {id:'bow',name:'粉蝴蝶结',price:12,desc:'宠物配件 · 可随时摘下',cat:'acc',icon:ICONS.bow},
+  {id:'crown',name:'黄金皇冠',price:40,desc:'宠物配件 · 可随时摘下',cat:'acc',icon:ICONS.crown}
 ];
 
 /* ---------- 音效（WebAudio 合成，无外部文件） ---------- */
@@ -742,6 +778,85 @@ function buildScenery(){
   }
 }
 
+/* ---------- 成就系统 ---------- */
+const ACHS=[
+  {id:'adopt',name:'新的家人',desc:'领养一只宠物',icon:'🐾'},
+  {id:'feed50',name:'大胃王',desc:'累计喂食 50 次',icon:'🍖'},
+  {id:'bath50',name:'香喷喷',desc:'累计洗澡 50 次',icon:'🫧'},
+  {id:'pet100',name:'摸头杀',desc:'摸宠物 100 次',icon:'💕'},
+  {id:'catch10',name:'接球达人',desc:'单局接球 ≥ 10 个',icon:'🎾'},
+  {id:'rich',name:'小金库',desc:'持有金币 ≥ 100',icon:'🪙'},
+  {id:'adult',name:'长大成人',desc:'宠物进入成年',icon:'🌱'},
+  {id:'elder',name:'岁月静好',desc:'宠物成为长老',icon:'👑'},
+  {id:'alldecor',name:'家装设计师',desc:'集齐全部场景装扮',icon:'🎨'},
+  {id:'bday',name:'生日快乐',desc:'度过一个陪伴纪念日',icon:'🎂'}
+];
+function unlock(id){
+  if(!S||S.ach[id])return;
+  const a=ACHS.find(x=>x.id===id);if(!a)return;
+  S.ach[id]=Date.now();
+  toast('🏅 达成成就「'+a.name+'」！');
+  Sfx.play('level');confetti();
+  save();
+}
+function checkAch(){
+  if(!S)return;
+  if((S.cnt.feed||0)>=50)unlock('feed50');
+  if((S.cnt.bath||0)>=50)unlock('bath50');
+  if((S.cnt.pet||0)>=100)unlock('pet100');
+  if((S.cnt.best||0)>=10)unlock('catch10');
+  if(S.coins>=100)unlock('rich');
+  const st=stageOf(S.xp).id;
+  if(st!=='baby')unlock('adult');
+  if(st==='elder')unlock('elder');
+  if(['night','beach','sakura'].every(d=>S.owned.includes(d)))unlock('alldecor');
+}
+function renderAch(){
+  $('#achCount').textContent='已解锁 '+Object.keys(S.ach).length+' / '+ACHS.length;
+  $('#achGrid').innerHTML=ACHS.map(a=>{
+    const got=!!S.ach[a.id];
+    return '<div class="ach '+(got?'':'off')+'"><div class="ic">'+a.icon+'</div><b>'+a.name+'</b><p>'+a.desc+'</p><p>'+(got?new Date(S.ach[a.id]).toLocaleDateString():'— 未解锁 —')+'</p></div>';
+  }).join('');
+}
+
+/* ---------- 宠物配件 ---------- */
+function accSVG(sp,id){
+  const y=sp==='bird'?26:34;
+  if(id==='hat')return '<ellipse cx="112" cy="'+(y-3)+'" rx="23" ry="5.5" fill="#4d4d5e" stroke="'+INK+'" stroke-width="4"/><rect x="100" y="'+(y-24)+'" width="24" height="22" rx="2.5" fill="#4d4d5e" stroke="'+INK+'" stroke-width="4"/><rect x="99" y="'+(y-11)+'" width="26" height="6" fill="#e05d5d" stroke="'+INK+'" stroke-width="3"/>';
+  if(id==='crown')return '<path d="M94 '+(y-2)+' L97 '+(y-15)+' 105 '+(y-8)+' 112 '+(y-18)+' 119 '+(y-8)+' 127 '+(y-15)+' 130 '+(y-2)+' Z" fill="#ffd166" stroke="'+INK+'" stroke-width="4" stroke-linejoin="round"/><circle cx="97" cy="'+(y-15)+'" r="2.2" fill="#e05d5d"/><circle cx="112" cy="'+(y-18)+'" r="2.2" fill="#e05d5d"/><circle cx="127" cy="'+(y-15)+'" r="2.2" fill="#e05d5d"/>';
+  if(id==='bow')return '<path d="M150 '+(y+8)+' l17-10v20Z" fill="#f2789f" stroke="'+INK+'" stroke-width="3.5" stroke-linejoin="round"/><path d="M150 '+(y+8)+' l-17-10v20Z" fill="#f2789f" stroke="'+INK+'" stroke-width="3.5" stroke-linejoin="round"/><circle cx="150" cy="'+(y+8)+'" r="5" fill="#f2789f" stroke="'+INK+'" stroke-width="3.5"/>';
+  return '';
+}
+
+/* ---------- 节日 & 生日彩蛋 ---------- */
+const FEST={
+  '01-01':'元旦快乐！新的一年也要一起哦 🎉',
+  '02-14':'情人节快乐～最喜欢你啦 💗',
+  '05-01':'劳动节快乐，今天也要努力玩耍！',
+  '06-01':'儿童节快乐！我永远是个宝宝 🍬',
+  '10-01':'国庆快乐！一起去草地上打滚吧 🎈',
+  '10-31':'万圣节…不给糖果就捣蛋！🎃',
+  '12-24':'平安夜快乐，记得吃苹果哦 🍎',
+  '12-25':'圣诞快乐！圣诞帽借我戴戴 🎄'
+};
+function festivalLine(){
+  const d=new Date();
+  const md=String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  return FEST[md];
+}
+function checkBirthday(){
+  const days=Math.floor((Date.now()-S.createdAt)/864e5);
+  if(days>=7&&days%7===0&&S.lastBday!==days){
+    S.lastBday=days;S.coins+=50;
+    confetti();hop();
+    toast('🎂 陪伴 '+S.name+' 满 '+days+' 天纪念日！+50 金币');
+    floatText('🎂',50,20);
+    say('谢谢你这 '+days+' 天的照顾～');
+    unlock('bday');
+    save();renderHeader();
+  }
+}
+
 /* ---------- 宠物 SVG ---------- */
 function petSVG(sp){
   const parts={
@@ -848,6 +963,7 @@ function petSVG(sp){
 let S=null,selSpecies='dog',lastPetTime=0,tickCount=0,resetting=false,animExpr=null,eatingAnim=false,bathAnim=false;
 function newState(sp,name){return{sp,name,createdAt:Date.now(),lastSeen:Date.now(),lastBonus:'',
   coins:20,xp:0,sleeping:false,sound:true,decor:'meadow',owned:['meadow'],bag:{},
+  cnt:{feed:0,bath:0,pet:0,best:0},acc:'',accOwned:[],ach:{},lastBday:0,
   stats:{hunger:80,clean:80,energy:80,mood:80}}}
 function save(){
   if(!S||resetting)return;
@@ -897,6 +1013,7 @@ function generalHints(){
     '金币不够就去接球，一场下来不少呢',
     '陪伴每分钟自然涨成长，挂机也在长大哦',
     '怕进度丢失？右上角 📤 生成进度码，扫码随时回来',
+    '给它买顶小帽子？小卖部有配饰区哦',
     '太阳月亮跟着北京时间走，晚上来看月亮哦',
     '宠物会用气泡说话，留意它的小心思哦'
   ];
@@ -989,10 +1106,12 @@ function renderHeader(){
   $('#xpTxt').textContent=next?xp+'/'+next.min+' → '+next.name:'MAX';
 }
 function renderPet(){
+  let svgStr=petSVG(S.sp);
+  if(S.acc)svgStr=svgStr.replace('</g></g>','<g class="acc">'+accSVG(S.sp,S.acc)+'</g></g></g>');
   const svg=$('#petScale .pet-svg');
   if(svg)svg.remove();
-  $('#petScale').insertAdjacentHTML('beforeend',petSVG(S.sp));
-  $('#avatar').innerHTML=petSVG(S.sp);
+  $('#petScale').insertAdjacentHTML('beforeend',svgStr);
+  $('#avatar').innerHTML=svgStr;
   updatePetLook();
 }
 function updatePetLook(){
@@ -1029,6 +1148,7 @@ function tick(){
   renderStats();updatePetLook();
   updateClock();renderCelestial();
   if(tickCount%10===0)renderHeader();
+  if(tickCount%15===0)checkAch();
   if(Date.now()-lastToastAt>6000)$('#toastBar').textContent=curHint;
 }
 
@@ -1101,6 +1221,7 @@ function act(kind){
     if(eatingAnim){toast('慢慢吃～别着急');return}
     eatingAnim=true;
     S.stats.hunger=clamp(S.stats.hunger+30,0,100);S.stats.mood=clamp(S.stats.mood+2,0,100);
+    S.cnt.feed=(S.cnt.feed||0)+1;
     Sfx.play('pop');
     const bowl=document.createElement('div');bowl.className='feed-food';
     bowl.innerHTML=foodBowlSVG(S.sp);
@@ -1121,6 +1242,7 @@ function act(kind){
     if(bathAnim){toast('正在搓泡泡呢～');return}
     bathAnim=true;
     S.stats.clean=clamp(S.stats.clean+42,0,100);S.stats.mood=clamp(S.stats.mood+4,0,100);
+    S.cnt.bath=(S.cnt.bath||0)+1;
     Sfx.play('bubble');
     const foam=document.createElement('div');foam.className='foam-cap';
     foam.innerHTML=foamSVG();
@@ -1156,6 +1278,7 @@ function petIt(){
   if(Date.now()-lastPetTime>4000){
     lastPetTime=Date.now();
     S.stats.mood=clamp(S.stats.mood+2,0,100);S.xp+=1;
+    S.cnt.pet=(S.cnt.pet||0)+1;
     floatText('💕 +2',50,26);Sfx.play('pop');
     if(Math.random()<.35)say(['再摸摸~','好舒服呀','最喜欢你啦'][Math.floor(Math.random()*3)]);
     save();renderStats();updatePetLook();renderHeader();
@@ -1168,7 +1291,23 @@ function closeShop(){$('#shopMask').classList.add('hidden')}
 function renderShop(){
   $('#shopCoins').textContent=S.coins;
   $('#shopItems').innerHTML=ITEMS.map(it=>{
-    if(it.cat==='decor'){
+    if(it.cat==='acc'){
+      const owned=S.accOwned.includes(it.id),active=S.acc===it.id;
+      let btn;
+      if(active)btn='<button class="buy" data-off="1">摘下</button>';
+      else if(owned)btn='<button class="buy" data-wear="'+it.id+'">佩戴</button>';
+      else btn='<button class="buy '+(S.coins>=it.price?'':'no')+'" data-id="'+it.id+'" '+(S.coins>=it.price?'':'disabled')+'>🪙'+it.price+'</button>';
+      return '<div class="item"><div class="ic">'+it.icon+'</div><div class="info"><b>'+it.name+'</b><p>'+it.desc+'</p></div>'+btn+'</div>';
+    }
+    if(it.cat==='acc'){
+    if(S.accOwned.includes(it.id))return;
+    if(S.coins<it.price){toast('金币不够啦，去照顾宠物赚金币吧～');return}
+    S.coins-=it.price;S.accOwned.push(it.id);S.acc=it.id;
+    Sfx.play('coin');confetti();hop();renderPet();
+    toast('解锁「'+it.name+'」，立刻戴上啦！');
+    save();renderHeader();renderShop();return;
+  }
+  if(it.cat==='decor'){
       const owned=S.owned.includes(it.id),active=S.decor===it.id;
       let btn;
       if(active)btn='<button class="buy no" disabled>使用中</button>';
@@ -1182,6 +1321,14 @@ function renderShop(){
       <button class="buy ${ok?'':'no'}" data-id="${it.id}" ${ok?'':'disabled'}>🪙${it.price}</button></div>`;
   }).join('');
   $('#shopItems').querySelectorAll('.buy[data-id]').forEach(b=>b.onclick=()=>buy(b.dataset.id));
+  $('#shopItems').querySelectorAll('.buy[data-wear]').forEach(b=>b.onclick=()=>{
+    S.acc=b.dataset.wear;renderPet();Sfx.play('pop');toast('戴上啦～是不是超搭！');
+    save();renderShop();checkAch();
+  });
+  $('#shopItems').querySelectorAll('.buy[data-off]').forEach(b=>b.onclick=()=>{
+    S.acc='';renderPet();Sfx.play('click');toast('摘下来了，素颜也很可爱');
+    save();renderShop();
+  });
   $('#shopItems').querySelectorAll('.buy[data-use]').forEach(b=>b.onclick=()=>{
     setDecor(b.dataset.use);Sfx.play('click');toast('换上新场景啦～');save();renderShop();
   });
@@ -1293,6 +1440,7 @@ function miniEnd(){
   S.stats.mood=clamp(S.stats.mood+Math.min(24,6+sc*2),0,100);
   S.stats.energy=clamp(S.stats.energy-12,0,100);
   S.xp+=sc*2;
+  S.cnt.best=Math.max(S.cnt.best||0,sc);
   $('#miniResult').innerHTML='<b>接到了 '+sc+' 个球！</b><span>🪙 +'+coins+' · 💗 心情↑ · 成长 +'+(sc*2)+'</span>';
   $('#miniResult').classList.remove('hidden');
   $('#miniBall').style.display='none';
@@ -1311,6 +1459,8 @@ function closeMini(){
 function autoChat(){
   if(!S)return;
   if(S.sleeping){if(Math.random()<.5)say('Zzz…（翻了个身）');return}
+  const fl=festivalLine();
+  if(fl&&Math.random()<.7){say(fl);return}
   const hints=[];
   if(S.stats.hunger<35)hints.push('肚子咕咕叫了，想吃饭饭…');
   if(S.stats.clean<35)hints.push('身上痒痒的，想洗澡澡…');
@@ -1381,7 +1531,10 @@ const RULES=[
   ['🪙','金币：照顾 / 接球赚金币，每日签到 +15；小卖部买的道具放进背包，点击使用'],
   ['🎨','装扮：小卖部可买星空夜幕、阳光海滩、浪漫樱花场景，永久拥有随时切换'],
   ['🌱','成长：陪伴每分钟自然 +1，互动额外加；满 200 变「成年」、满 600 变「长老」，外形跟着变'],
-  ['⚠️','小心：清洁太低会长污渍，心情太低会掉眼泪，精力不足就玩不动啦']
+  ['⚠️','小心：清洁太低会长污渍，心情太低会掉眼泪，精力不足就玩不动啦'],
+  ['🏆','成就：解锁里程碑徽章，点顶部 🏆 查看成就墙'],
+  ['🎩','配件：小卖部可买礼帽、皇冠、蝴蝶结给宠物戴，随时佩戴或摘下'],
+  ['🎂','彩蛋：每陪伴满 7 天有纪念日奖励，节日还有限定台词哦']
 ];
 function buildRules(){
   $('#rulesList').innerHTML=RULES.map(r=>`<div><b>${r[0]}</b><span>${r[1]}</span></div>`).join('');
@@ -1415,7 +1568,7 @@ function enterGame(){
   $('#scene').dataset.theme=S.decor||'meadow';
   buildScenery();updateClock();renderCelestial();
   renderPet();buildStats();renderStats();renderHeader();
-  $('#avatar').innerHTML=petSVG(S.sp);
+  unlock('adopt');
   $('#soundBtn').textContent=S.sound?'🔊':'🔇';
   $('#toastBar').classList.remove('hidden');
   initHint();
@@ -1472,6 +1625,9 @@ function init(){
     if(!S)return;
     save();toast('进度已保存 ✔');Sfx.play('click');
   };
+  $('#achBtn').onclick=()=>{renderAch();$('#achMask').classList.remove('hidden')};
+  $('#achClose').onclick=()=>$('#achMask').classList.add('hidden');
+  $('#achMask').onclick=e=>{if(e.target===$('#achMask'))$('#achMask').classList.add('hidden')};
   $('#shareBtn').onclick=openShare;
   $('#shareClose').onclick=()=>$('#shareMask').classList.add('hidden');
   $('#shareMask').onclick=e=>{if(e.target===$('#shareMask'))$('#shareMask').classList.add('hidden')};
@@ -1499,6 +1655,9 @@ function init(){
     if(!S.decor||!Array.isArray(S.owned)||!S.owned.length){S.decor='meadow';S.owned=['meadow']}
     if(typeof S.sound!=='boolean')S.sound=true;
     if(!S.bag||typeof S.bag!=='object')S.bag={};
+    if(!S.cnt)S.cnt={feed:0,bath:0,pet:0,best:0};
+    if(!S.accOwned)S.accOwned=[];if(!S.acc)S.acc='';
+    if(!S.ach)S.ach={};if(S.lastBday===undefined)S.lastBday=0;
     const awayMin=(Date.now()-S.lastSeen)/60000;
     if(awayMin>3){
       applyMinutes(Math.min(awayMin,4320));
@@ -1507,6 +1666,8 @@ function init(){
     }
     enterGame();
     dailyBonus();
+    checkBirthday();
+    checkAch();
     if(hashObj)setTimeout(()=>toast('已从进度链接恢复「'+S.name+'」✅'),500);
     else if(hashNote)setTimeout(()=>toast(hashNote),500);
   }
