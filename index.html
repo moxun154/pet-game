@@ -219,6 +219,11 @@ header.wobbly{padding:8px 12px;display:flex;align-items:center;gap:10px;flex-wra
 .mini-start,.mini-result{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;background:rgba(255,250,240,.78)}
 .mini-result b{font-size:22px}
 .mini-result span{font-size:14px;color:var(--ink-soft)}
+.mini-pet{position:absolute;left:50%;bottom:0;width:112px;height:100px;transform:translateX(-50%);pointer-events:none}
+.mini-pet svg{width:100%;height:100%}
+.mini-pet.catch{animation:miniCatch .4s}
+@keyframes miniCatch{0%,100%{transform:translateX(-50%)}35%{transform:translateX(-50%) translateY(-18px) scale(1.07,.9)}60%{transform:translateX(-50%) translateY(0)}78%{transform:translateX(-50%) translateY(-8px)}}
+.mini-plus{position:absolute;font-size:16px;color:#e05d5d;animation:fup .8s forwards;pointer-events:none;z-index:6}
 
 /* 气泡 & 特效 */
 .bubble{position:absolute;left:50%;top:48px;transform:translateX(-50%);max-width:240px;
@@ -558,13 +563,14 @@ header.wobbly{padding:8px 12px;display:flex;align-items:center;gap:10px;flex-wra
   <div class="modal-mask hidden" id="gameMask">
     <div class="modal wobbly mini-modal">
       <h2>🎾 接球大作战</h2>
-      <p class="mini-tip">点中弹跳的球得分！15 秒内接得越多，奖励越多</p>
+      <p class="mini-tip">点中球，宠物会跳起来接住！15 秒内接得越多，奖励越多</p>
       <div class="mini-bar"><div class="mini-bar-fill" id="miniTimerFill"></div></div>
       <div class="mini-info"><span id="miniScore">0 分</span><span id="miniTimeTxt">15.0s</span></div>
       <div class="mini-area" id="miniArea">
         <div class="mini-ball" id="miniBall"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="23" fill="#f2994a" stroke="#5b4636" stroke-width="4.5"/><path d="M5 19q21 11 42 0M5 33q21-11 42 0" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round"/></svg></div>
         <div class="mini-start" id="miniStart"><button class="btn primary" id="miniStartBtn">开始！</button></div>
         <div class="mini-result hidden" id="miniResult"></div>
+        <div class="mini-pet" id="miniPet"></div>
       </div>
       <button class="btn close-x" id="miniClose">不玩了</button>
     </div>
@@ -1107,13 +1113,17 @@ function renderHeader(){
   $('#xpTxt').textContent=next?xp+'/'+next.min+' → '+next.name:'MAX';
 }
 function renderPet(){
-  let svgStr=petSVG(S.sp);
-  if(S.acc)svgStr=svgStr.replace('</g></g>','<g class="acc">'+accSVG(S.sp,S.acc)+'</g></g></g>');
+  const svgStr=currentPetSVG();
   const svg=$('#petScale .pet-svg');
   if(svg)svg.remove();
   $('#petScale').insertAdjacentHTML('beforeend',svgStr);
   $('#avatar').innerHTML=svgStr;
   updatePetLook();
+}
+function currentPetSVG(){
+  let s=petSVG(S.sp);
+  if(S.acc)s=s.replace('</g></g>','<g class="acc">'+accSVG(S.sp,S.acc)+'</g></g></g>');
+  return s;
 }
 function updatePetLook(){
   const svg=$('#petScale .pet-svg');if(!svg)return;
@@ -1376,27 +1386,29 @@ function useItem(id){
 }
 
 /* ---------- 接球小游戏 ---------- */
-const MINI={on:false,score:0,t:15,vx:2.6,vy:2.1,x:60,y:60,raf:0,last:0};
+const MINI={on:false,score:0,t:15,vx:2.6,vy:2.1,x:60,y:60,raf:0,last:0,hold:false};
 function openMini(){
   if(S.sleeping){toast('嘘…'+S.name+' 正在睡觉哦');return}
   if(S.stats.energy<15){toast(S.name+' 太累了，先让它睡一觉吧');return}
+  $('#miniPet').innerHTML=currentPetSVG();
   $('#gameMask').classList.remove('hidden');
   miniReset();
 }
 function miniReset(){
-  MINI.on=false;cancelAnimationFrame(MINI.raf);
+  MINI.on=false;MINI.hold=false;cancelAnimationFrame(MINI.raf);
   MINI.score=0;MINI.t=15;
   $('#miniScore').textContent='0 分';$('#miniTimeTxt').textContent='15.0s';
   $('#miniTimerFill').style.width='100%';
   $('#miniStart').classList.remove('hidden');
   $('#miniResult').classList.add('hidden');
-  $('#miniBall').style.display='none';
+  const ball=$('#miniBall');
+  ball.style.display='none';ball.style.transition='';ball.style.opacity='1';
 }
 function miniStart(){
   Sfx.play('click');
   $('#miniStart').classList.add('hidden');$('#miniResult').classList.add('hidden');
   const ball=$('#miniBall');ball.style.display='block';
-  MINI.on=true;MINI.score=0;MINI.t=15;
+  MINI.on=true;MINI.score=0;MINI.t=15;MINI.hold=false;
   MINI.vx=(Math.random()>.5?1:-1)*(2.2+Math.random()*1.2);
   MINI.vy=1.8+Math.random()*1.2;
   const area=$('#miniArea');
@@ -1409,29 +1421,47 @@ function miniLoop(now){
   const dt=Math.min(40,now-MINI.last)/16.7;MINI.last=now;
   const area=$('#miniArea'),ball=$('#miniBall');
   MINI.t-=dt*16.7/1000;
-  MINI.x+=MINI.vx*dt;MINI.y+=MINI.vy*dt;
-  const W=area.clientWidth-52,H=area.clientHeight-52;
-  if(MINI.x<0){MINI.x=0;MINI.vx=Math.abs(MINI.vx)}
-  if(MINI.x>W){MINI.x=W;MINI.vx=-Math.abs(MINI.vx)}
-  if(MINI.y<0){MINI.y=0;MINI.vy=Math.abs(MINI.vy)}
-  if(MINI.y>H){MINI.y=H;MINI.vy=-Math.abs(MINI.vy)}
-  ball.style.transform='translate('+MINI.x.toFixed(1)+'px,'+MINI.y.toFixed(1)+'px)';
+  if(!MINI.hold){
+    MINI.x+=MINI.vx*dt;MINI.y+=MINI.vy*dt;
+    const W=area.clientWidth-52,H=area.clientHeight-52;
+    if(MINI.x<0){MINI.x=0;MINI.vx=Math.abs(MINI.vx)}
+    if(MINI.x>W){MINI.x=W;MINI.vx=-Math.abs(MINI.vx)}
+    if(MINI.y<0){MINI.y=0;MINI.vy=Math.abs(MINI.vy)}
+    if(MINI.y>H){MINI.y=H;MINI.vy=-Math.abs(MINI.vy)}
+    ball.style.transform='translate('+MINI.x.toFixed(1)+'px,'+MINI.y.toFixed(1)+'px)';
+  }
   $('#miniTimeTxt').textContent=Math.max(0,MINI.t).toFixed(1)+'s';
   $('#miniTimerFill').style.width=Math.max(0,MINI.t/15*100)+'%';
   if(MINI.t<=0){miniEnd();return}
   MINI.raf=requestAnimationFrame(miniLoop);
 }
 function miniCatch(e){
-  if(!MINI.on)return;
+  if(!MINI.on||MINI.hold)return;
   e.stopPropagation();
   MINI.score++;
   $('#miniScore').textContent=MINI.score+' 分';
-  const ball=$('#miniBall'),area=$('#miniArea');
-  ball.classList.remove('pop');void ball.offsetWidth;ball.classList.add('pop');
-  MINI.vx*=1.05;MINI.vy*=1.05;
-  MINI.x=Math.random()*(area.clientWidth-52);
-  MINI.y=Math.random()*(area.clientHeight-52)*.6;
   Sfx.play('catch',MINI.score);
+  const ball=$('#miniBall'),area=$('#miniArea'),pet=$('#miniPet');
+  const plus=document.createElement('span');plus.className='mini-plus';plus.textContent='+1';
+  plus.style.left=(MINI.x+16)+'px';plus.style.top=(MINI.y+4)+'px';
+  area.appendChild(plus);setTimeout(()=>plus.remove(),820);
+  pet.classList.remove('catch');void pet.offsetWidth;pet.classList.add('catch');
+  MINI.hold=true;
+  const tx=area.clientWidth/2-26,ty=area.clientHeight-64;
+  ball.style.transition='transform .18s ease-in, opacity .18s';
+  ball.style.transform='translate('+tx+'px,'+ty+'px) scale(.5)';
+  ball.style.opacity='.25';
+  setTimeout(()=>{
+    ball.style.display='none';
+    MINI.vx=(Math.random()>.5?1:-1)*(2.4+Math.random()*1.3+Math.min(MINI.score,10)*.07);
+    MINI.vy=1.8+Math.random()*1.1;
+    MINI.x=Math.random()*(area.clientWidth-52);
+    MINI.y=10+Math.random()*36;
+    ball.style.transition='';ball.style.opacity='1';
+    ball.style.transform='translate('+MINI.x.toFixed(1)+'px,'+MINI.y.toFixed(1)+'px)';
+    ball.style.display='block';
+    MINI.hold=false;
+  },190);
 }
 function miniEnd(){
   MINI.on=false;cancelAnimationFrame(MINI.raf);
