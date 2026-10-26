@@ -566,8 +566,8 @@ header.wobbly{padding:8px 12px;display:flex;align-items:center;gap:10px;flex-wra
   <!-- 接球小游戏 -->
   <div class="modal-mask hidden" id="gameMask">
     <div class="modal wobbly mini-modal">
-      <h2>🎾 接球大作战</h2>
-      <p class="mini-tip">点中球，宠物会跳起来接住！15 秒内接得越多，奖励越多</p>
+      <h2 id="miniTitle">🎾 接球大作战</h2>
+      <p class="mini-tip" id="miniTip">点中球，宠物会跳起来接住！15 秒内接得越多，奖励越多</p>
       <div class="mini-bar"><div class="mini-bar-fill" id="miniTimerFill"></div></div>
       <div class="mini-info"><span id="miniScore">0 分</span><span id="miniTimeTxt">15.0s</span></div>
       <div class="mini-area" id="miniArea">
@@ -589,8 +589,8 @@ header.wobbly{padding:8px 12px;display:flex;align-items:center;gap:10px;flex-wra
   <!-- 飞盘小游戏 -->
   <div class="modal-mask hidden" id="frisMask">
     <div class="modal wobbly mini-modal">
-      <h2>🥏 飞盘快接</h2>
-      <p class="mini-tip">按住屏幕左右拖动宠物去接飞盘！金色飞盘一个顶三个</p>
+      <h2 id="frisTitle">🥏 飞盘快接</h2>
+      <p class="mini-tip" id="frisTip">按住屏幕左右拖动宠物去接飞盘！金色飞盘一个顶三个</p>
       <div class="mini-bar"><div class="mini-bar-fill" id="frisTimerFill"></div></div>
       <div class="mini-info"><span id="frisScore">0 分</span><span id="frisTimeTxt">20.0s</span></div>
       <div class="mini-area" id="frisArea">
@@ -659,9 +659,12 @@ const INK='#5b4636';
 
 /* ---------- 配置 ---------- */
 const SPECIES={
-  dog:{label:'小狗',defName:'团子',food:'骨头',lines:['汪汪！','扔球！扔球！','最喜欢你啦！','耳朵痒痒…帮帮忙嘛']},
-  cat:{label:'小猫',defName:'咪咪',food:'小鱼干',lines:['喵~','摸头可以，别摸肚子','阳光好舒服喵…','纸箱子去哪了？']},
-  bird:{label:'小鸟',defName:'啾啾',food:'鸟粮',lines:['啾啾！','我会说：你好！','给我唱首歌吧','翅膀想伸一伸~']}
+  dog:{label:'小狗',defName:'团子',food:'骨头',lines:['汪汪！','扔球！扔球！','最喜欢你啦！','耳朵痒痒…帮帮忙嘛'],
+    ballName:'球',ballEmoji:'🎾',frisName:'飞盘',frisEmoji:'🥏'},
+  cat:{label:'小猫',defName:'咪咪',food:'小鱼干',lines:['喵~','摸头可以，别摸肚子','阳光好舒服喵…','纸箱子去哪了？'],
+    ballName:'毛线球',ballEmoji:'🧶',frisName:'羽毛',frisEmoji:'🪶'},
+  bird:{label:'小鸟',defName:'啾啾',food:'鸟粮',lines:['啾啾！','我会说：你好！','给我唱首歌吧','翅膀想伸一伸~'],
+    ballName:'谷粒球',ballEmoji:'🌾',frisName:'纸飞机',frisEmoji:'✈️'}
 };
 const STAGES=[{id:'baby',name:'幼年',min:0},{id:'adult',name:'成年',min:200},{id:'elder',name:'长老',min:600}];
 const DECAY={hunger:.35,clean:.22,energy:.28,mood:.18}; // 每分钟衰减
@@ -888,6 +891,19 @@ function checkBirthday(){
     unlock('bday');
     save();renderHeader();
   }
+}
+
+/* ---------- 物种定制游戏道具 ---------- */
+function ballSVG(sp){
+  if(sp==='cat')return '<svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="23" fill="#f2789f" stroke="'+INK+'" stroke-width="4.5"/><path d="M6 18q20 6 40 0M6 34q20-6 40 0M14 5q-4 21 0 42M38 5q4 21 0 42" fill="none" stroke="'+INK+'" stroke-width="3.5" stroke-linecap="round"/><path d="M42 42q6 4 7 8" fill="none" stroke="'+INK+'" stroke-width="4" stroke-linecap="round"/></svg>';
+  if(sp==='bird')return '<svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="23" fill="#ffd166" stroke="'+INK+'" stroke-width="4.5"/><g fill="#e0a33f"><circle cx="18" cy="20" r="3"/><circle cx="28" cy="16" r="3"/><circle cx="36" cy="24" r="3"/><circle cx="22" cy="30" r="3"/><circle cx="32" cy="33" r="3"/></g><path d="M14 38q12 8 24 0" fill="none" stroke="'+INK+'" stroke-width="3.5" stroke-linecap="round"/></svg>';
+  return '<svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="23" fill="#f2994a" stroke="'+INK+'" stroke-width="4.5"/><path d="M5 19q21 11 42 0M5 33q21-11 42 0" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round"/></svg>';
+}
+function frisSVG(sp,gold){
+  const c=gold?'#ffd166':null;
+  if(sp==='cat')return '<svg viewBox="0 0 48 18"><path d="M4 14 Q20 1 45 4 Q30 8 23 16 Z" fill="'+(c||'#8fd3f4')+'" stroke="'+INK+'" stroke-width="3" stroke-linejoin="round"/><path d="M6 13 Q16 8 23 15" fill="none" stroke="'+INK+'" stroke-width="2.2" stroke-linecap="round"/></svg>';
+  if(sp==='bird')return '<svg viewBox="0 0 48 18"><path d="M2 9 46 2 30 16 25 9Z" fill="'+(c||'#fff')+'" stroke="'+INK+'" stroke-width="3" stroke-linejoin="round"/><path d="M25 9 46 2" fill="none" stroke="'+INK+'" stroke-width="2" stroke-linecap="round"/></svg>';
+  return '<svg viewBox="0 0 48 18"><ellipse cx="24" cy="9" rx="22" ry="8" fill="'+(c||'#8fd3f4')+'" stroke="'+INK+'" stroke-width="3.5"/><ellipse cx="24" cy="9" rx="10" ry="3.5" fill="#fff" opacity=".7"/></svg>';
 }
 
 /* ---------- 宠物 SVG ---------- */
@@ -1416,6 +1432,12 @@ const MINI={on:false,score:0,t:15,vx:2.6,vy:2.1,x:60,y:60,raf:0,last:0,hold:fals
 function openMini(){
   if(S.sleeping){toast('嘘…'+S.name+' 正在睡觉哦');return}
   if(S.stats.energy<15){toast(S.name+' 太累了，先让它睡一觉吧');return}
+  const cfg=SPECIES[S.sp];
+  $('#miniTitle').textContent=cfg.ballEmoji+' '+cfg.ballName+'大作战';
+  $('#miniTip').textContent='点中'+cfg.ballName+'，宠物会跳起来接住！15 秒内接得越多，奖励越多';
+  $('#miniStartBtn').innerHTML=cfg.ballEmoji+' '+cfg.ballName;
+  $('#frisBtn2').innerHTML=cfg.frisEmoji+' '+cfg.frisName;
+  $('#miniBall').innerHTML=ballSVG(S.sp);
   $('#miniPet').innerHTML=currentPetSVG();
   $('#gameMask').classList.remove('hidden');
   miniReset();
@@ -1498,7 +1520,7 @@ function miniEnd(){
   S.stats.energy=clamp(S.stats.energy-12,0,100);
   S.xp+=sc*2;
   S.cnt.best=Math.max(S.cnt.best||0,sc);
-  $('#miniResult').innerHTML='<b>接到了 '+sc+' 个球！</b><span>🪙 +'+coins+' · 💗 心情↑ · 成长 +'+(sc*2)+'</span>';
+  $('#miniResult').innerHTML='<b>接到了 '+sc+' 个'+SPECIES[S.sp].ballName+'！</b><span>🪙 +'+coins+' · 💗 心情↑ · 成长 +'+(sc*2)+'</span>';
   $('#miniResult').classList.remove('hidden');
   $('#miniBall').style.display='none';
   Sfx.play(sc>=5?'level':'coin');
@@ -1517,6 +1539,9 @@ const FRIS={on:false,t:20,score:0,raf:0,last:0,spawn:0,items:[],petX:140};
 function openFris(){
   if(S.sleeping){toast('嘘…'+S.name+' 正在睡觉哦');return}
   if(S.stats.energy<15){toast(S.name+' 太累了，先让它睡一觉吧');return}
+  const cfg=SPECIES[S.sp];
+  $('#frisTitle').textContent=cfg.frisEmoji+' '+cfg.frisName+'快接';
+  $('#frisTip').textContent='按住屏幕左右拖动宠物去接'+cfg.frisName+'！金色的一顶三';
   $('#frisPet').innerHTML=currentPetSVG();
   $('#frisMask').classList.remove('hidden');
   frisReset();
@@ -1547,7 +1572,7 @@ function frisSpawn(){
   const area=$('#frisArea');
   const gold=Math.random()<.15;
   const el=document.createElement('div');el.className='fris';
-  el.innerHTML='<svg viewBox="0 0 48 18"><ellipse cx="24" cy="9" rx="22" ry="8" fill="'+(gold?'#ffd166':'#8fd3f4')+'" stroke="#5b4636" stroke-width="3.5"/><ellipse cx="24" cy="9" rx="10" ry="3.5" fill="#fff" opacity=".7"/></svg>';
+  el.innerHTML=frisSVG(S.sp,gold);
   area.appendChild(el);
   FRIS.items.push({el,x:34+Math.random()*(area.clientWidth-68),y:-20,
     vy:2+Math.random()*1.1+(20-FRIS.t)*.045,gold});
