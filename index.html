@@ -224,6 +224,10 @@ header.wobbly{padding:8px 12px;display:flex;align-items:center;gap:10px;flex-wra
 .mini-pet.catch{animation:miniCatch .4s}
 @keyframes miniCatch{0%,100%{transform:translateX(-50%)}35%{transform:translateX(-50%) translateY(-18px) scale(1.07,.9)}60%{transform:translateX(-50%) translateY(0)}78%{transform:translateX(-50%) translateY(-8px)}}
 .mini-plus{position:absolute;font-size:16px;color:#e05d5d;animation:fup .8s forwards;pointer-events:none;z-index:6}
+.game-choose{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.fris{position:absolute;left:0;top:0;width:48px;height:18px;z-index:2;will-change:transform;pointer-events:none}
+.fris svg{width:100%;height:100%;animation:frisspin .6s linear infinite}
+@keyframes frisspin{0%,100%{transform:scaleX(1)}50%{transform:scaleX(.25)}}
 
 /* 气泡 & 特效 */
 .bubble{position:absolute;left:50%;top:48px;transform:translateX(-50%);max-width:240px;
@@ -568,11 +572,33 @@ header.wobbly{padding:8px 12px;display:flex;align-items:center;gap:10px;flex-wra
       <div class="mini-info"><span id="miniScore">0 分</span><span id="miniTimeTxt">15.0s</span></div>
       <div class="mini-area" id="miniArea">
         <div class="mini-ball" id="miniBall"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="23" fill="#f2994a" stroke="#5b4636" stroke-width="4.5"/><path d="M5 19q21 11 42 0M5 33q21-11 42 0" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round"/></svg></div>
-        <div class="mini-start" id="miniStart"><button class="btn primary" id="miniStartBtn">开始！</button></div>
+        <div class="mini-start" id="miniStart">
+          <b style="font-size:17px">今天玩哪个？</b>
+          <div class="game-choose">
+            <button class="btn primary" id="miniStartBtn">🎾 接球</button>
+            <button class="btn primary" id="frisBtn2">🥏 飞盘</button>
+          </div>
+        </div>
         <div class="mini-result hidden" id="miniResult"></div>
         <div class="mini-pet" id="miniPet"></div>
       </div>
       <button class="btn close-x" id="miniClose">不玩了</button>
+    </div>
+  </div>
+
+  <!-- 飞盘小游戏 -->
+  <div class="modal-mask hidden" id="frisMask">
+    <div class="modal wobbly mini-modal">
+      <h2>🥏 飞盘快接</h2>
+      <p class="mini-tip">按住屏幕左右拖动宠物去接飞盘！金色飞盘一个顶三个</p>
+      <div class="mini-bar"><div class="mini-bar-fill" id="frisTimerFill"></div></div>
+      <div class="mini-info"><span id="frisScore">0 分</span><span id="frisTimeTxt">20.0s</span></div>
+      <div class="mini-area" id="frisArea">
+        <div class="mini-pet" id="frisPet"></div>
+        <div class="mini-start" id="frisStart"><button class="btn primary" id="frisStartBtn">开始！</button></div>
+        <div class="mini-result hidden" id="frisResult"></div>
+      </div>
+      <button class="btn close-x" id="frisClose">不玩了</button>
     </div>
   </div>
 
@@ -1486,6 +1512,97 @@ function closeMini(){
   $('#gameMask').classList.add('hidden');
 }
 
+/* ---------- 飞盘小游戏 ---------- */
+const FRIS={on:false,t:20,score:0,raf:0,last:0,spawn:0,items:[],petX:140};
+function openFris(){
+  if(S.sleeping){toast('嘘…'+S.name+' 正在睡觉哦');return}
+  if(S.stats.energy<15){toast(S.name+' 太累了，先让它睡一觉吧');return}
+  $('#frisPet').innerHTML=currentPetSVG();
+  $('#frisMask').classList.remove('hidden');
+  frisReset();
+}
+function frisReset(){
+  FRIS.on=false;cancelAnimationFrame(FRIS.raf);
+  FRIS.items.forEach(f=>f.el.remove());FRIS.items=[];
+  FRIS.score=0;FRIS.t=20;
+  $('#frisScore').textContent='0 分';$('#frisTimeTxt').textContent='20.0s';
+  $('#frisTimerFill').style.width='100%';
+  $('#frisStart').classList.remove('hidden');
+  $('#frisResult').classList.add('hidden');
+  setFrisPet(($('#frisArea').clientWidth||280)/2);
+}
+function setFrisPet(x){
+  const w=$('#frisArea').clientWidth||280;
+  FRIS.petX=Math.max(60,Math.min(w-60,x));
+  $('#frisPet').style.left=FRIS.petX+'px';
+}
+function frisStart(){
+  Sfx.play('click');
+  $('#frisStart').classList.add('hidden');$('#frisResult').classList.add('hidden');
+  FRIS.on=true;FRIS.score=0;FRIS.t=20;FRIS.spawn=0;FRIS.last=performance.now();
+  setFrisPet($('#frisArea').clientWidth/2);
+  FRIS.raf=requestAnimationFrame(frisLoop);
+}
+function frisSpawn(){
+  const area=$('#frisArea');
+  const gold=Math.random()<.15;
+  const el=document.createElement('div');el.className='fris';
+  el.innerHTML='<svg viewBox="0 0 48 18"><ellipse cx="24" cy="9" rx="22" ry="8" fill="'+(gold?'#ffd166':'#8fd3f4')+'" stroke="#5b4636" stroke-width="3.5"/><ellipse cx="24" cy="9" rx="10" ry="3.5" fill="#fff" opacity=".7"/></svg>';
+  area.appendChild(el);
+  FRIS.items.push({el,x:34+Math.random()*(area.clientWidth-68),y:-20,
+    vy:2+Math.random()*1.1+(20-FRIS.t)*.045,gold});
+}
+function frisLoop(now){
+  if(!FRIS.on)return;
+  const dt=Math.min(40,now-FRIS.last)/16.7;FRIS.last=now;
+  const area=$('#frisArea'),H=area.clientHeight;
+  FRIS.t-=dt*16.7/1000;
+  FRIS.spawn-=dt*16.7;
+  if(FRIS.spawn<=0){frisSpawn();FRIS.spawn=Math.max(480,950-(20-FRIS.t)*30)}
+  const catchY=H-96;
+  for(let i=FRIS.items.length-1;i>=0;i--){
+    const f=FRIS.items[i];
+    f.y+=f.vy*dt;
+    f.el.style.transform='translate('+(f.x-24).toFixed(1)+'px,'+f.y.toFixed(1)+'px)';
+    if(f.y>catchY&&Math.abs(f.x-FRIS.petX)<58){
+      FRIS.score+=f.gold?3:1;
+      $('#frisScore').textContent=FRIS.score+' 分';
+      const pet=$('#frisPet');
+      pet.classList.remove('catch');void pet.offsetWidth;pet.classList.add('catch');
+      Sfx.play('catch',FRIS.score);
+      const plus=document.createElement('span');plus.className='mini-plus';plus.textContent=f.gold?'+3':'+1';
+      plus.style.left=f.x+'px';plus.style.top=Math.max(4,f.y-10)+'px';
+      area.appendChild(plus);setTimeout(()=>plus.remove(),820);
+      f.el.remove();FRIS.items.splice(i,1);continue;
+    }
+    if(f.y>H+24){f.el.remove();FRIS.items.splice(i,1)}
+  }
+  $('#frisTimeTxt').textContent=Math.max(0,FRIS.t).toFixed(1)+'s';
+  $('#frisTimerFill').style.width=Math.max(0,FRIS.t/20*100)+'%';
+  if(FRIS.t<=0){frisEnd();return}
+  FRIS.raf=requestAnimationFrame(frisLoop);
+}
+function frisEnd(){
+  FRIS.on=false;cancelAnimationFrame(FRIS.raf);
+  FRIS.items.forEach(f=>f.el.remove());FRIS.items=[];
+  const sc=FRIS.score,coins=sc*2;
+  S.coins+=coins;
+  S.stats.mood=clamp(S.stats.mood+Math.min(24,6+sc*2),0,100);
+  S.stats.energy=clamp(S.stats.energy-12,0,100);
+  S.xp+=sc*2;
+  $('#frisResult').innerHTML='<b>拿到了 '+sc+' 分！</b><span>🪙 +'+coins+' · 💗 心情↑ · 成长 +'+(sc*2)+'</span>';
+  $('#frisResult').classList.remove('hidden');
+  Sfx.play(sc>=8?'level':'coin');
+  hop();say(sc>=18?'飞盘大师就是我！':'接飞盘太开心啦！');
+  reward(0,0);
+  save();renderStats();updatePetLook();renderHeader();
+}
+function closeFris(){
+  FRIS.on=false;cancelAnimationFrame(FRIS.raf);
+  FRIS.items.forEach(f=>f.el.remove());FRIS.items=[];
+  $('#frisMask').classList.add('hidden');
+}
+
 /* ---------- 说话 ---------- */
 function autoChat(){
   if(!S)return;
@@ -1556,7 +1673,7 @@ function copyShareLink(){
 const RULES=[
   ['🐾','领养：挑一只小狗 / 小猫 / 小鸟带回家，给它起个名字'],
   ['🥣','照顾：饱食、清洁、精力、心情会随时间下降——喂食、洗澡、陪它玩、困了哄它睡'],
-  ['🎮','玩耍：和它玩 15 秒接球小游戏，点中弹跳的球，接得越多金币和成长越多'],
+  ['🎮','玩耍：接球（点球宠物跳起接）或飞盘（拖动宠物去接），接得越多金币和成长越多'],
   ['👆','互动：直接点它会冒爱心加心情；它饿了、困了、无聊了都会用气泡提醒你'],
   ['💾','存档：进度自动保存在浏览器里，关掉网页宠物也在真实成长，回来记得照顾它'],
   ['🪙','金币：照顾 / 接球赚金币，每日签到 +15；小卖部买的道具放进背包，点击使用'],
@@ -1649,9 +1766,25 @@ function init(){
     act(k);
   });
   $('#miniStartBtn').onclick=miniStart;
+  $('#frisBtn2').onclick=()=>{closeMini();openFris()};
   $('#miniBall').addEventListener('pointerdown',miniCatch);
   $('#miniClose').onclick=closeMini;
   $('#gameMask').onclick=e=>{if(e.target===$('#gameMask'))closeMini()};
+  $('#frisStartBtn').onclick=frisStart;
+  $('#frisClose').onclick=closeFris;
+  $('#frisMask').onclick=e=>{if(e.target===$('#frisMask'))closeFris()};
+  const frisArea=$('#frisArea');let frisDrag=false;
+  frisArea.addEventListener('pointerdown',e=>{if(!FRIS.on)return;frisDrag=true;
+    setFrisPet(e.clientX-frisArea.getBoundingClientRect().left);e.preventDefault()});
+  window.addEventListener('pointermove',e=>{if(!FRIS.on||!frisDrag)return;
+    setFrisPet(e.clientX-frisArea.getBoundingClientRect().left)});
+  window.addEventListener('pointerup',()=>frisDrag=false);
+  window.addEventListener('pointercancel',()=>frisDrag=false);
+  document.addEventListener('keydown',e=>{
+    if(!FRIS.on)return;
+    if(e.key==='ArrowLeft'){setFrisPet(FRIS.petX-36);e.preventDefault()}
+    if(e.key==='ArrowRight'){setFrisPet(FRIS.petX+36);e.preventDefault()}
+  });
   $('#saveBtn').onclick=()=>{
     if(!S)return;
     save();toast('进度已保存 ✔');Sfx.play('click');
