@@ -322,6 +322,18 @@ header.wobbly{padding:8px 12px;display:flex;align-items:center;gap:10px;flex-wra
   background:#fff;border:3px solid var(--ink);border-radius:12px 18px 10px 20px/18px 10px 20px 12px}
 .rules-list b{flex:none;font-size:16px}
 
+/* 进度码（防微信清缓存丢档） */
+.share-box{margin:10px 0;padding:10px 12px;background:#fff;border:3px dashed #c9a97e;
+  border-radius:14px 18px 10px 20px/18px 10px 20px 14px;text-align:left}
+.share-box>b{font-size:15px}
+.share-tip{font-size:13px;color:var(--ink-soft);margin-bottom:4px;line-height:1.5}
+.share-box textarea{width:100%;height:58px;margin-top:6px;font-family:inherit;font-size:12px;color:var(--ink);
+  padding:7px 9px;border:3px solid var(--ink);border-radius:10px 14px 8px 16px/14px 8px 16px 10px;background:#fffaf0;resize:none;word-break:break-all;box-sizing:border-box}
+.share-btns{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+#qrBox{margin-top:10px;text-align:center}
+#qrBox img{width:210px;border:3px solid var(--ink);border-radius:12px;background:#fff}
+.qr-note{font-size:12px;color:var(--ink-soft);margin-top:6px}
+
 /* 底部常驻提示条 */
 #toastBar{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:100;
   max-width:min(92vw,500px);padding:9px 20px;font-size:15px;text-align:center;
@@ -379,6 +391,7 @@ header.wobbly{padding:8px 12px;display:flex;align-items:center;gap:10px;flex-wra
         </div>
       </div>
       <div class="h-btns">
+        <button class="btn small" id="shareBtn" data-tip="进度备份与恢复 📤">📤</button>
         <button class="btn small" id="saveBtn" data-tip="保存进度 💾">💾</button>
         <button class="btn small" id="soundBtn" data-tip="音效开关 🔊">🔊</button>
         <button class="btn small" id="helpBtn" data-tip="玩法说明 📖">?</button>
@@ -486,6 +499,32 @@ header.wobbly{padding:8px 12px;display:flex;align-items:center;gap:10px;flex-wra
         <div class="mini-result hidden" id="miniResult"></div>
       </div>
       <button class="btn close-x" id="miniClose">不玩了</button>
+    </div>
+  </div>
+
+  <!-- 进度码 -->
+  <div class="modal-mask hidden" id="shareMask">
+    <div class="modal wobbly">
+      <h2>📤 进度随身带</h2>
+      <div class="share-box">
+        <p class="share-tip">微信可能清理缓存导致进度丢失。生成<b>进度链接</b>或二维码保存起来，随时扫码回到当前进度（换手机也能用）。</p>
+        <b>① 我的进度链接</b>
+        <textarea id="shareCode" readonly></textarea>
+        <div class="share-btns">
+          <button class="btn small" id="copyCode">复制链接</button>
+          <button class="btn small" id="qrcodeBtn">生成二维码</button>
+        </div>
+        <div id="qrBox" class="hidden">
+          <img id="qrImg" alt="进度二维码">
+          <p class="qr-note">长按保存这张二维码，下次扫码直接回到当前进度</p>
+        </div>
+      </div>
+      <div class="share-box">
+        <b>② 恢复进度</b>
+        <textarea id="restoreCode" placeholder="把之前复制的进度链接或进度码粘贴到这里"></textarea>
+        <div class="share-btns"><button class="btn small" id="restoreBtn">恢复</button></div>
+      </div>
+      <button class="btn close-x" id="shareClose">关闭</button>
     </div>
   </div>
 
@@ -808,6 +847,7 @@ function generalHints(){
     '「'+SPECIES[S.sp].food+'」是 '+S.name+' 的最爱',
     '金币不够就去接球，一场下来不少呢',
     '陪伴每分钟自然涨成长，挂机也在长大哦',
+    '怕进度丢失？右上角 📤 生成进度码，扫码随时回来',
     '太阳月亮跟着北京时间走，晚上来看月亮哦',
     '宠物会用气泡说话，留意它的小心思哦'
   ];
@@ -1231,6 +1271,57 @@ function autoChat(){
   if(Math.random()<.6)say(SPECIES[S.sp].lines[Math.floor(Math.random()*SPECIES[S.sp].lines.length)]);
 }
 
+/* ---------- 进度码（防微信清缓存） ---------- */
+function encodeSave(){return btoa(unescape(encodeURIComponent(JSON.stringify(S))))}
+function decodeSave(code){
+  try{
+    const o=JSON.parse(decodeURIComponent(escape(atob(code.trim()))));
+    return (o&&o.sp&&SPECIES[o.sp]&&o.stats)?o:null;
+  }catch(e){return null}
+}
+let hashNote='';
+function tryRestoreFromHash(){
+  hashNote='';
+  const m=location.hash.match(/[#&]s=([A-Za-z0-9+/%=]+)/);
+  if(!m)return null;
+  history.replaceState(null,'',location.pathname+location.search);
+  let code=m[1];try{code=decodeURIComponent(code)}catch(e){}
+  const o=decodeSave(code);
+  if(!o){hashNote='链接里的进度码无效';return null}
+  const local=load();
+  if(local&&local.sp&&SPECIES[local.sp]&&(local.lastSeen||0)>(o.lastSeen||0)){
+    hashNote='本地进度更新一些，已保留本地进度';
+    return local;
+  }
+  return o;
+}
+function shareLink(){return location.origin+location.pathname+'#s='+encodeSave()}
+function openShare(){
+  if(!S)return;
+  $('#shareCode').value=shareLink();
+  $('#qrBox').classList.add('hidden');
+  $('#restoreCode').value='';
+  $('#shareMask').classList.remove('hidden');
+}
+function applyRestore(code){
+  const o=decodeSave(code);
+  if(!o){toast('进度码无效，请检查后重试');return}
+  S=o;
+  if(!S.decor||!Array.isArray(S.owned)||!S.owned.length){S.decor='meadow';S.owned=['meadow']}
+  if(typeof S.sound!=='boolean')S.sound=true;
+  if(!S.bag||typeof S.bag!=='object')S.bag={};
+  enterGame();save();
+  $('#shareMask').classList.add('hidden');
+  toast('已恢复「'+S.name+'」的进度 ✅');Sfx.play('level');
+}
+function copyShareLink(){
+  const ta=$('#shareCode');ta.focus();ta.select();
+  let ok=false;
+  try{ok=document.execCommand('copy')}catch(e){}
+  if(!ok&&navigator.clipboard){navigator.clipboard.writeText(ta.value).then(()=>toast('已复制，去备忘录/微信收藏保存吧')).catch(()=>toast('复制失败，请长按文字手动复制'));return}
+  toast(ok?'已复制，去备忘录/微信收藏保存吧':'复制失败，请长按文字手动复制');
+}
+
 /* ---------- 玩法说明 ---------- */
 const RULES=[
   ['🐾','领养：挑一只小狗 / 小猫 / 小鸟带回家，给它起个名字'],
@@ -1332,6 +1423,19 @@ function init(){
     if(!S)return;
     save();toast('进度已保存 ✔');Sfx.play('click');
   };
+  $('#shareBtn').onclick=openShare;
+  $('#shareClose').onclick=()=>$('#shareMask').classList.add('hidden');
+  $('#shareMask').onclick=e=>{if(e.target===$('#shareMask'))$('#shareMask').classList.add('hidden')};
+  $('#copyCode').onclick=copyShareLink;
+  $('#qrcodeBtn').onclick=()=>{
+    $('#qrImg').src='https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&data='+encodeURIComponent(shareLink());
+    $('#qrBox').classList.remove('hidden');
+  };
+  $('#restoreBtn').onclick=()=>{
+    const v=$('#restoreCode').value.trim();
+    if(!v){toast('先粘贴进度链接或进度码哦');return}
+    applyRestore(v.indexOf('#s=')>-1?v.split('#s=')[1]:v);
+  };
   const renderSoundBtn=()=>{$('#soundBtn').textContent=S?((S.sound)?'🔊':'🔇'):'🔊'};
   $('#soundBtn').onclick=()=>{
     S.sound=!S.sound;renderSoundBtn();save();
@@ -1339,7 +1443,8 @@ function init(){
   };
   renderSoundBtn();
 
-  const saved=load();
+  const hashObj=tryRestoreFromHash();
+  const saved=hashObj||load();
   if(saved&&saved.sp&&SPECIES[saved.sp]){
     S=saved;
     if(!S.decor||!Array.isArray(S.owned)||!S.owned.length){S.decor='meadow';S.owned=['meadow']}
@@ -1353,6 +1458,8 @@ function init(){
     }
     enterGame();
     dailyBonus();
+    if(hashObj)setTimeout(()=>toast('已从进度链接恢复「'+S.name+'」✅'),500);
+    else if(hashNote)setTimeout(()=>toast(hashNote),500);
   }
   setInterval(tick,1000);
   setInterval(autoChat,20000);
