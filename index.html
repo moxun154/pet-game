@@ -1068,7 +1068,8 @@ function updateSaveLine(){
   el.textContent='💾 已自动保存 · '+new Date().toTimeString().slice(0,8);
 }
 
-/* ---------- 云端统计上报（经 EdgeOne 边缘函数中转，令牌在服务端，静默失败不影响游戏） ---------- */
+/* ---------- 云端统计上报（经腾讯云函数中转，令牌在服务端，静默失败不影响游戏） ---------- */
+const REPORT_URL='https://1470164467-d1bjw8x8m5.ap-guangzhou.tencentscf.com/';
 let repTryAt=0;
 function deviceId(){
   let d=null;try{d=localStorage.getItem('pet-device-id')}catch(e){}
@@ -1090,7 +1091,7 @@ async function reportStats(force){
       xp:Math.floor(S.xp),coins:S.coins,
       days:Math.max(1,Math.ceil((now-(S.createdAt||now))/864e5)),
       decor:S.decor||'meadow',acc:S.acc||'',createdAt:S.createdAt};
-    const r=await fetch('/api/report',{method:'POST',headers:{'Content-Type':'application/json'},
+    const r=await fetch(REPORT_URL,{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify(payload)});
     if(r.ok)S.repAt=now;
   }catch(e){}
