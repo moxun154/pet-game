@@ -36,6 +36,15 @@ button:focus-visible{outline:3px dashed var(--ink-soft);outline-offset:2px}
 
 /* ============ 开始界面 ============ */
 #startScreen{padding:26px 20px;text-align:center}
+#profileList{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.profile-row{display:flex;align-items:center;gap:10px;background:#fff;border:3px solid #5b4636;border-radius:14px;padding:6px 10px;text-align:left;box-shadow:3px 3px 0 rgba(91,70,54,.15)}
+.p-avatar{width:54px;height:50px;flex:none;overflow:hidden}
+.p-avatar svg{width:100%;height:100%}
+.p-info{flex:1;min-width:0}
+.p-info b{font-size:15px;color:#5b4636}
+.p-info small{display:block;font-size:12px;color:#8a7a6a;margin-top:2px}
+.profile-row .btn{padding:5px 10px;font-size:13px}
+.profile-row .p-del{padding:5px 9px}
 .logo{font-size:34px;letter-spacing:2px}
 .logo .paw{display:inline-block;transform:rotate(-14deg)}
 .sub{color:var(--ink-soft);margin:6px 0 20px;font-size:15px}
@@ -425,6 +434,10 @@ header.wobbly{padding:8px 12px;display:flex;align-items:center;gap:10px;flex-wra
       <input id="nameInput" maxlength="8" placeholder="给它起个名字">
       <button class="btn primary" id="startBtn">开始饲养 ❤</button>
     </div>
+    <div class="rules-box hidden" id="profileBox">
+      <b>👥 继续冒险（多个档案互不影响）</b>
+      <div id="profileList"></div>
+    </div>
     <div class="rules-box">
       <b>📖 玩法说明</b>
       <ul>
@@ -433,6 +446,7 @@ header.wobbly{padding:8px 12px;display:flex;align-items:center;gap:10px;flex-wra
         <li>🪙 照顾和接球赚金币，每天签到 +15；小卖部有零食和场景装扮</li>
         <li>🌱 经验满会长大：幼年 → 成年 → 长老，外形跟着变</li>
         <li>👆 直接点它会有爱心；困了让它睡觉，睡饱会自己醒</li>
+        <li>👥 同一台设备可养多只：点顶部 👥 随时切换或新建档案，互不影响</li>
       </ul>
     </div>
   </section>
@@ -453,6 +467,7 @@ header.wobbly{padding:8px 12px;display:flex;align-items:center;gap:10px;flex-wra
         </div>
       </div>
       <div class="h-btns">
+        <button class="btn small" id="profBtn" data-tip="切换/新建档案 👥">👥</button>
         <button class="btn small" id="achBtn" data-tip="成就墙 🏆">🏆</button>
         <button class="btn small" id="shareBtn" data-tip="进度备份与恢复 📤">📤</button>
         <button class="btn small" id="saveBtn" data-tip="保存进度 💾">💾</button>
@@ -1009,21 +1024,49 @@ function petSVG(sp){
 }
 
 /* ---------- 状态 ---------- */
-let S=null,selSpecies='dog',lastPetTime=0,tickCount=0,resetting=false,animExpr=null,eatingAnim=false,bathAnim=false;
+let S=null,DB=null,selSpecies='dog',lastPetTime=0,tickCount=0,resetting=false,animExpr=null,eatingAnim=false,bathAnim=false;
 function newState(sp,name){return{sp,name,createdAt:Date.now(),lastSeen:Date.now(),lastBonus:'',
   coins:20,xp:0,sleeping:false,sound:true,decor:'meadow',owned:['meadow'],bag:{},
   cnt:{feed:0,bath:0,pet:0,best:0},acc:'',accOwned:[],ach:{},lastBday:0,
   stats:{hunger:80,clean:80,energy:80,mood:80}}}
+function esc(s){return String(s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]))}
+function saveDB(){if(!DB)DB={v:2,profiles:[],active:null};try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){}}
+function loadDB(){
+  try{
+    const raw=localStorage.getItem(KEY);
+    if(!raw)return;
+    const j=JSON.parse(raw);
+    if(j&&j.v===2&&Array.isArray(j.profiles)){DB=j;return}
+    if(j&&j.sp&&SPECIES[j.sp]){DB={v:2,profiles:[{id:'p1',data:j}],active:'p1'}}
+  }catch(e){}
+}
+function activeData(){if(!DB)return null;const p=DB.profiles.find(x=>x.id===DB.active);return p?p.data:null}
+function activate(p){
+  DB.active=p.id;S=p.data;
+  if(!S.decor||!Array.isArray(S.owned)||!S.owned.length){S.decor='meadow';S.owned=['meadow']}
+  if(typeof S.sound!=='boolean')S.sound=true;
+  if(!S.bag||typeof S.bag!=='object')S.bag={};
+  if(!S.cnt)S.cnt={feed:0,bath:0,pet:0,best:0};
+  if(!S.accOwned)S.accOwned=[];if(!S.acc)S.acc='';
+  if(!S.ach)S.ach={};if(S.lastBday===undefined)S.lastBday=0;
+  S.lastSeen=S.lastSeen||Date.now();
+}
+function upsertActive(){
+  if(!DB)DB={v:2,profiles:[],active:null};
+  let p=DB.profiles.find(x=>x.id===DB.active);
+  if(!p){p={id:'p'+Date.now(),data:S};DB.profiles.push(p);DB.active=p.id}
+  else p.data=S;
+}
 function save(){
   if(!S||resetting)return;
   S.lastSeen=Date.now();
-  try{localStorage.setItem(KEY,JSON.stringify(S));updateSaveLine()}catch(e){}
+  upsertActive();saveDB();
+  updateSaveLine();
 }
 function updateSaveLine(){
   const el=$('#saveLine');if(!el)return;
   el.textContent='💾 已自动保存 · '+new Date().toTimeString().slice(0,8);
 }
-function load(){try{const r=localStorage.getItem(KEY);return r?JSON.parse(r):null}catch(e){return null}}
 
 function stageOf(xp){let st=STAGES[0];for(const s of STAGES)if(xp>=s.min)st=s;return st}
 
@@ -1660,7 +1703,7 @@ function tryRestoreFromHash(){
   let code=m[1];try{code=decodeURIComponent(code)}catch(e){}
   const o=decodeSave(code);
   if(!o){hashNote='链接里的进度码无效';return null}
-  const local=load();
+  const local=activeData();
   if(local&&local.sp&&SPECIES[local.sp]&&(local.lastSeen||0)>(o.lastSeen||0)){
     hashNote='本地进度更新一些，已保留本地进度';
     return local;
@@ -1707,7 +1750,8 @@ const RULES=[
   ['⚠️','小心：清洁太低会长污渍，心情太低会掉眼泪，精力不足就玩不动啦'],
   ['🏆','成就：解锁里程碑徽章，点顶部 🏆 查看成就墙'],
   ['🎩','配件：小卖部可买礼帽、皇冠、蝴蝶结给宠物戴，随时佩戴或摘下'],
-  ['🎂','彩蛋：每陪伴满 7 天有纪念日奖励，节日还有限定台词哦']
+  ['🎂','彩蛋：每陪伴满 7 天有纪念日奖励，节日还有限定台词哦'],
+  ['👥','档案：每台设备的存档相互独立；同一设备也能建多个档案（顶部 👥 切换）']
 ];
 function buildRules(){
   $('#rulesList').innerHTML=RULES.map(r=>`<div><b>${r[0]}</b><span>${r[1]}</span></div>`).join('');
@@ -1730,10 +1774,51 @@ function buildStart(){
 function startGame(){
   const name=$('#nameInput').value.trim()||SPECIES[selSpecies].defName;
   S=newState(selSpecies,name);
+  upsertActive();saveDB();
   enterGame();
   Sfx.play('level');
   toast('欢迎回家！记得常来看看 '+S.name+' 哦');
   setTimeout(()=>toast('喂食、洗澡、玩耍都能赚金币，商店有惊喜'),2600);
+}
+function showStartWithProfiles(){
+  closeMini();closeFris();
+  document.querySelectorAll('.modal-mask').forEach(m=>m.classList.add('hidden'));
+  $('#gameScreen').classList.add('hidden');
+  ['#toastBar','#saveLine','#bagPanel'].forEach(id=>{const el=$(id);if(el)el.classList.add('hidden')});
+  $('#startScreen').classList.remove('hidden');
+  renderStartProfiles();
+}
+function renderStartProfiles(){
+  const box=$('#profileBox'),list=$('#profileList');
+  if(!DB||!DB.profiles.length){box.classList.add('hidden');return}
+  box.classList.remove('hidden');
+  list.innerHTML='';
+  DB.profiles.forEach(p=>{
+    const d=p.data,stage=stageOf(d.xp||0);
+    const days=Math.max(1,Math.ceil((Date.now()-(d.createdAt||Date.now()))/864e5));
+    const row=document.createElement('div');row.className='profile-row';
+    row.innerHTML='<div class="p-avatar">'+petSVG(d.sp)+'</div>'
+      +'<div class="p-info"><b>'+esc(d.name||'宠物')+'</b><small>'+SPECIES[d.sp].label+' · '+stage.name+' · 陪伴 '+days+' 天</small></div>'
+      +'<button class="btn primary p-enter">进入 ▶</button><button class="btn p-del" title="删除档案">✕</button>';
+    row.querySelector('.p-enter').onclick=()=>{
+      activate(p);
+      const awayMin=(Date.now()-S.lastSeen)/60000;
+      if(awayMin>3){
+        applyMinutes(Math.min(awayMin,4320));
+        const h=awayMin>=60?(awayMin/60).toFixed(1)+' 小时':Math.round(awayMin)+' 分钟';
+        setTimeout(()=>toast('你离开了 '+h+'，'+S.name+' 一直在等你回来'),600);
+      }
+      enterGame();dailyBonus();checkBirthday();checkAch();
+    };
+    row.querySelector('.p-del').onclick=()=>{
+      if(!confirm('删除档案「'+d.name+'」？此操作不可恢复'))return;
+      DB.profiles=DB.profiles.filter(x=>x!==p);
+      if(!DB.profiles.length){resetting=true;localStorage.removeItem(KEY);location.reload();return}
+      if(DB.active===p.id)DB.active=null;
+      saveDB();renderStartProfiles();
+    };
+    list.appendChild(row);
+  });
 }
 function enterGame(){
   $('#startScreen').classList.add('hidden');
@@ -1764,11 +1849,16 @@ function init(){
   buildStart();
   $('#startBtn').onclick=startGame;
   $('#resetBtn').onclick=()=>{
-    if(confirm('确定要送走 '+S.name+' 重新领养一只吗？')){
-      resetting=true;
-      localStorage.removeItem(KEY);
-      location.reload();
+    if(!S)return;
+    if(confirm('确定要送走 '+S.name+' 吗？（其他档案不受影响）')){
+      DB.profiles=DB.profiles.filter(p=>p.id!==DB.active);
+      S=null;
+      if(DB.profiles.length){DB.active=null;saveDB();showStartWithProfiles()}
+      else{resetting=true;localStorage.removeItem(KEY);location.reload()}
     }
+  };
+  $('#profBtn').onclick=()=>{
+    save();DB.active=null;saveDB();S=null;showStartWithProfiles();
   };
   $('#petWrap').onclick=petIt;
   $('#shopBtn').innerHTML=ICONS.shop+'<span>小卖部</span>';
@@ -1838,9 +1928,14 @@ function init(){
   renderSoundBtn();
 
   const hashObj=tryRestoreFromHash();
-  const saved=hashObj||load();
+  loadDB();
+  const actP=(DB&&DB.profiles.find(p=>p.id===DB.active))||null;
+  const saved=hashObj||(actP&&actP.data);
   if(saved&&saved.sp&&SPECIES[saved.sp]){
-    S=saved;
+    if(hashObj){
+      const p={id:'p'+Date.now(),data:saved};
+      DB.profiles.push(p);DB.active=p.id;S=saved;
+    }else{DB.active=actP.id;S=saved}
     if(!S.decor||!Array.isArray(S.owned)||!S.owned.length){S.decor='meadow';S.owned=['meadow']}
     if(typeof S.sound!=='boolean')S.sound=true;
     if(!S.bag||typeof S.bag!=='object')S.bag={};
@@ -1859,6 +1954,8 @@ function init(){
     checkAch();
     if(hashObj)setTimeout(()=>toast('已从进度链接恢复「'+S.name+'」✅'),500);
     else if(hashNote)setTimeout(()=>toast(hashNote),500);
+  }else{
+    renderStartProfiles();
   }
   setInterval(tick,1000);
   setInterval(autoChat,20000);
