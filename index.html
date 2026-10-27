@@ -1068,6 +1068,34 @@ function updateSaveLine(){
   el.textContent='💾 已自动保存 · '+new Date().toTimeString().slice(0,8);
 }
 
+/* ---------- 云端统计上报（经 EdgeOne 边缘函数中转，令牌在服务端，静默失败不影响游戏） ---------- */
+let repTryAt=0;
+function deviceId(){
+  let d=null;try{d=localStorage.getItem('pet-device-id')}catch(e){}
+  if(!d){d='dev-'+Math.random().toString(36).slice(2,10)+Date.now().toString(36);
+    try{localStorage.setItem('pet-device-id',d)}catch(e){}}
+  return d;
+}
+async function reportStats(force){
+  if(!S||!S.name)return;
+  const now=Date.now();
+  if(!force){
+    if(S.repAt&&now-S.repAt<6*3600e3)return;
+    if(now-repTryAt<3600e3)return;
+  }
+  repTryAt=now;
+  try{
+    if(!S.repKey)S.repKey=Math.random().toString(36).slice(2,10);
+    const payload={key:deviceId()+'-'+S.repKey,name:S.name,sp:S.sp,stage:stageOf(S.xp).name,
+      xp:Math.floor(S.xp),coins:S.coins,
+      days:Math.max(1,Math.ceil((now-(S.createdAt||now))/864e5)),
+      decor:S.decor||'meadow',acc:S.acc||'',createdAt:S.createdAt};
+    const r=await fetch('/api/report',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)});
+    if(r.ok)S.repAt=now;
+  }catch(e){}
+}
+
 function stageOf(xp){let st=STAGES[0];for(const s of STAGES)if(xp>=s.min)st=s;return st}
 
 /* ---------- 提示 ---------- */
@@ -1779,6 +1807,7 @@ function startGame(){
   Sfx.play('level');
   toast('欢迎回家！记得常来看看 '+S.name+' 哦');
   setTimeout(()=>toast('喂食、洗澡、玩耍都能赚金币，商店有惊喜'),2600);
+  reportStats(true);
 }
 function showStartWithProfiles(){
   closeMini();closeFris();
@@ -1834,6 +1863,7 @@ function enterGame(){
   $('#bagPanel').classList.remove('hidden');
   renderBag();
   save();
+  reportStats();
 }
 
 /* ---------- 初始化 ---------- */
@@ -1961,6 +1991,7 @@ function init(){
   setInterval(autoChat,20000);
   setInterval(rotateHint,60000);
   setInterval(save,10000);
+  setInterval(reportStats,30*60*1000);
   window.addEventListener('beforeunload',save);
   document.addEventListener('visibilitychange',()=>{if(document.hidden)save()});
 }
